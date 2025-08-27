@@ -1,0 +1,313 @@
+openapi: 3.0.1
+info:
+  title: Todolist API
+  description: An API for managing a list of activities (tasks and events).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+tags:
+  - name: Activities
+    description: Operations related to activities
+
+paths:
+  /activities:
+    get:
+      tags:
+        - Activities
+      summary: Get all activities
+      description: Retrieves a list of all activities stored in the database.
+      responses:
+        '200':
+          description: A list of activities was successfully retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 500
+                message: "Internal server error occurred"
+
+    post:
+      tags:
+        - Activities
+      summary: Create a new activity
+      description: Adds a new activity to the database.
+      requestBody:
+        description: The activity object to be created.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityCreateRequest'
+      responses:
+        '201':
+          description: The activity was successfully created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityCreateResponse'
+        '400':
+          description: Bad Request (e.g., validation failed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 400
+                message: "Field 'title' is required"
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 500
+                message: "Internal server error occurred"
+
+  /activities/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The numeric ID of the activity to operate on.
+        schema:
+          type: integer
+          format: int64
+
+    put:
+      tags:
+        - Activities
+      summary: Update an existing activity
+      description: Updates the details of an existing activity by its ID.
+      requestBody:
+        description: The activity object with the data to be updated.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityUpdateRequest'
+      responses:
+        '200':
+          description: The activity was successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '400':
+          description: Bad Request (e.g., validation failed or invalid ID).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 400
+                message: "Invalid ID format"
+        '404':
+          description: Not Found (the activity with the specified ID does not exist).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 404
+                message: "activity not found"
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 500
+                message: "Internal server error occurred"
+
+    delete:
+      tags:
+        - Activities
+      summary: Delete an activity
+      description: Deletes an activity by its ID.
+      responses:
+        '200':
+          description: The activity was successfully deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericSuccessResponse'
+        '404':
+          description: Not Found (the activity with the specified ID does not exist).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 404
+                message: "activity not found"
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                data: null
+                status_code: 500
+                message: "Internal server error occurred"
+
+components:
+  schemas:
+    Activity:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 1
+        title:
+          type: string
+          example: Learn Go-Fiber
+        category:
+          type: string
+          enum: [TASK, EVENT]
+          example: TASK
+        description:
+          type: string
+          example: Complete the clean architecture tutorial.
+        activity_date:
+          type: string
+          format: date-time
+          example: '2025-08-27T10:00:00Z'
+        status:
+          type: string
+          enum: [NEW, 'ON PROGRESS', EXPIRED]
+          example: ON PROGRESS
+
+    ActivityCreateRequest:
+      type: object
+      required:
+        - title
+        - category
+        - description
+        - activity_date
+      properties:
+        title:
+          type: string
+          example: Learn Go-Fiber
+        category:
+          type: string
+          enum: [TASK, EVENT]
+          example: TASK
+        description:
+          type: string
+          example: Complete the clean architecture tutorial.
+        activity_date:
+          type: string
+          format: date-time
+          example: '2025-08-27T10:00:00Z'
+
+    ActivityUpdateRequest:
+      type: object
+      required:
+        - title
+        - category
+        - description
+        - activity_date
+        - status
+      properties:
+        title:
+          type: string
+          example: Learn Go-Fiber (Updated)
+        category:
+          type: string
+          enum: [TASK, EVENT]
+          example: TASK
+        description:
+          type: string
+          example: Complete the clean architecture tutorial and API documentation.
+        activity_date:
+          type: string
+          format: date-time
+          example: '2025-08-28T10:00:00Z'
+        status:
+          type: string
+          enum: [NEW, 'ON PROGRESS', EXPIRED]
+          example: ON PROGRESS
+
+    GenericSuccessResponse:
+      type: object
+      properties:
+        data:
+          nullable: true
+          example: null
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Activity deleted successfully
+
+    ActivityResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Activity'
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Activity updated successfully
+
+    ActivityCreateResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Activity'
+        status_code:
+          type: integer
+          example: 201
+        message:
+          type: string
+          example: Activity created successfully
+
+    ActivityListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Activities retrieved successfully
+
+    ErrorResponse:
+      type: object
+      properties:
+        data:
+          nullable: true
+          example: null
+        status_code:
+          type: integer
+        message:
+          type: string
