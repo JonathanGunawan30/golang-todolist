@@ -24,7 +24,7 @@ import (
 type ActivityTestSuite struct {
 	suite.Suite
 	app *fiber.App
-	db  database.Database
+	db  *database.PostgresDB
 }
 
 func (suite *ActivityTestSuite) SetupSuite() {

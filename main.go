@@ -23,14 +23,15 @@ func main() {
 	}
 
 	db := database.NewPostgresDatabase()
-	if err := db.Connect(cfg.Database.URL); err != nil {
-		log.WithError(err).Fatal("Failed to connect to the database")
+	err = db.Connect(cfg.Database.URL)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to connect to database")
 	}
 	defer db.Close()
 
 	srv := server.NewFiberServer(cfg)
 
-	repo := activityRepo.NewActivityRepository(db.GetDB())
+	repo := activityRepo.NewActivityRepository(db.Gorm)
 	usecase := activityUsecase.NewActivityUsecase(repo)
 	handler := activityHandler.NewActivityHttpHandler(srv.GetEngine(), usecase)
 

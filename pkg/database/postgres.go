@@ -4,39 +4,47 @@ import (
 	"database/sql"
 	"time"
 
-	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-type postgresDB struct {
-	DB *sql.DB
+type PostgresDB struct {
+	Gorm *gorm.DB
+	SQL  *sql.DB
 }
 
-func NewPostgresDatabase() Database {
-	return &postgresDB{}
+func NewPostgresDatabase() *PostgresDB {
+	return &PostgresDB{}
 }
 
-func (postgres *postgresDB) Connect(url string) error {
-	db, err := sql.Open("postgres", url)
+func (p *PostgresDB) Connect(dsn string) error {
+	gdb, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return err
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxIdleTime(10 * time.Minute)
-	db.SetConnMaxLifetime(60 * time.Minute)
-
-	if err := db.Ping(); err != nil {
-		db.Close()
+	sqlDB, err := gdb.DB()
+	if err != nil {
 		return err
 	}
-	postgres.DB = db
+
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
+
+	p.Gorm = gdb
+	p.SQL = sqlDB
 	return nil
 }
-func (postgres *postgresDB) GetDB() *sql.DB {
-	return postgres.DB
+
+func (p *PostgresDB) GetDB() *gorm.DB {
+	return p.Gorm
 }
 
-func (postgres *postgresDB) Close() error {
-	return postgres.DB.Close()
+func (p *PostgresDB) Close() error {
+	if p.SQL != nil {
+		return p.SQL.Close()
+	}
+	return nil
 }

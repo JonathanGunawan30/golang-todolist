@@ -1,94 +1,68 @@
 package repository
 
 import (
-	"database/sql"
 	"errors"
 	"todolist-v1/modules/activity/entities"
+
+	"gorm.io/gorm"
 )
 
 type activityRepositoryImpl struct {
-	DB *sql.DB
+	DB *gorm.DB
 }
 
-func NewActivityRepository(db *sql.DB) ActivityRepository {
+func NewActivityRepository(db *gorm.DB) ActivityRepository {
 	return &activityRepositoryImpl{DB: db}
 }
 
 func (repository *activityRepositoryImpl) FindAll() ([]entities.Activity, error) {
-	query := "SELECT id, title, category, description, activity_date, status FROM activities"
-	rows, err := repository.DB.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var activities []entities.Activity
-	for rows.Next() {
-		var act entities.Activity
-		if err := rows.Scan(&act.Id, &act.Title, &act.Category, &act.Description, &act.ActivityDate, &act.Status); err != nil {
-			return nil, err
-		}
-		activities = append(activities, act)
+	if err := repository.DB.Find(&activities).Error; err != nil {
+		return nil, err
 	}
 	return activities, nil
 }
 
 func (repository *activityRepositoryImpl) Save(activity entities.Activity) (entities.Activity, error) {
-	query := `INSERT INTO activities(title,category,description,activity_date,status) VALUES ($1,$2,$3,$4,$5) RETURNING id`
-	err := repository.DB.QueryRow(query, activity.Title, activity.Category, activity.Description, activity.ActivityDate, activity.Status).Scan(&activity.Id)
-	return activity, err
+	if err := repository.DB.Create(&activity).Error; err != nil {
+		return entities.Activity{}, err
+	}
+	return activity, nil
 }
 
 func (repository *activityRepositoryImpl) Update(id int, activity entities.Activity) (entities.Activity, error) {
-	query := `UPDATE activities 
-	          SET title = $1, category = $2, description = $3, activity_date = $4, status = $5
-	          WHERE id = $6 
-	          RETURNING id, title, category, description, activity_date, status`
+	result := repository.DB.Model(&entities.Activity{}).Where("id = ?", id).Updates(map[string]any{
+		"title":         activity.Title,
+		"category":      activity.Category,
+		"description":   activity.Description,
+		"activity_date": activity.ActivityDate,
+		"status":        activity.Status,
+	})
+	if result.Error != nil {
+		return entities.Activity{}, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return entities.Activity{}, ErrActivityNotFound
+	}
 
-	var updatedActivity entities.Activity
-
-	err := repository.DB.QueryRow(query,
-		activity.Title,
-		activity.Category,
-		activity.Description,
-		activity.ActivityDate,
-		activity.Status,
-		id,
-	).Scan(
-		&updatedActivity.Id,
-		&updatedActivity.Title,
-		&updatedActivity.Category,
-		&updatedActivity.Description,
-		&updatedActivity.ActivityDate,
-		&updatedActivity.Status,
-	)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	var updated entities.Activity
+	if err := repository.DB.First(&updated, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return entities.Activity{}, ErrActivityNotFound
 		}
 		return entities.Activity{}, err
 	}
 
-	return updatedActivity, nil
+	return activity, nil
 }
 
 func (repository *activityRepositoryImpl) Delete(id int) error {
-	query := "DELETE FROM activities WHERE id = $1"
-
-	result, err := repository.DB.Exec(query, id)
-	if err != nil {
-		return err
+	result := repository.DB.Delete(&entities.Activity{}, id)
+	if result.Error != nil {
+		return result.Error
 	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return ErrActivityNotFound
 	}
-
 	return nil
 }
